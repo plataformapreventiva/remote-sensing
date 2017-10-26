@@ -1,0 +1,12 @@
+#shapefiles
+*.shp
+*.shx
+*.shp
+*.prj
+*.dbf
+
+#geotiff
+*.tiff
+*.tif
+*.xml
+
