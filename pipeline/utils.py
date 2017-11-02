@@ -77,6 +77,18 @@ def valid_path(path):
         os.makedirs(path)
     pass
 
+def check_empty_file(path):
+    """
+    Check if a file has zero bytes, if so, erase it. 
+    """
+    try: 
+    	statinfo = os.stat(path).st_size
+    except OSError:
+	statinfo = True
+    if not statinfo:
+        os.remove(path)
+
+
 
 def get_tile_urls(modis_prod_url, date_url, tiles):
     '''

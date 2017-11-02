@@ -6,6 +6,7 @@ import os
 import pdb
 from dotenv import load_dotenv, find_dotenv
 
+#python modis_luigi.py GetRasters --local-scheduler --workers 7
 
 # NOTE: sudo apt-get install libhdf4-dev // install HDF4 driver so GDAL recognizes the MODIS format files
 load_dotenv(find_dotenv())
@@ -35,6 +36,8 @@ class DownloadTile(luigi.Task):
         cmd = ' '.join(['wget', '--user=' + user, '--password=' + password, '-O', self.path_d +  self.date_tile_file, self.date_tile_url])
         subprocess.call(cmd, shell=True)
 
+        # Check if downloaded file is empty
+        utils.check_empty_file(self.path_d + self.date_tile_file)
 
 class Tile2GeoTiff(luigi.Task):
     """
@@ -46,12 +49,13 @@ class Tile2GeoTiff(luigi.Task):
     path_d = luigi.Parameter()
 
     def requires(self):
+        # Check if file is empty
+        utils.check_empty_file(self.path_d + self.date_tile_file)
+
         return DownloadTile(date_tile_file=self.date_tile_file, date_tile_url=self.date_tile_url, modis_prod_url=self.modis_prod_url, path_d = self.path_d)
 
     def run(self):
         preffix = 'HDF4_EOS:EOS_GRID:"'
-        suffix = '":MODIS_Grid_16DAY_250m_500m_VI:250m\ 16\ days\ EVI'
-        suffix = '":MODIS_Grid_16DAY_1km_VI:1\ km\ 16\ days\ EVI'
         suffix = utils.get_suffix(self.modis_prod_url)
 
 

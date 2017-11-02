@@ -7,7 +7,7 @@ import numpy as no
 
 
 from luigi import configuration
-
+#PYTHONPATH="." python preprocess/preprocess.py GetClusters --GetClusters-cve-muni '25010' --local-scheduler
 
 class StackRasters(luigi.Task):
     """
@@ -91,6 +91,7 @@ class CropDistanceRasters(luigi.Task):
 
     # Create stack_path
     def requires(self):
+
         mun_shp_path = self.muns_shps_path + self.cve_muni + '.shp'
         raster_name = utils.date_rasternames(self.dist_raster_path, self.dates,    dimension = self.dimension)
         yield MunShape(cve_muni = self.cve_muni,
@@ -100,6 +101,7 @@ class CropDistanceRasters(luigi.Task):
                 raster_name = raster_name)
 
     def run(self):
+
         mun_shp_path = self.muns_shps_path + self.cve_muni + '.shp'
         raster_name = utils.date_rasternames(self.dist_raster_path, self.dates, dimension = self.dimension)
         utils.crop_raster(mun_shp_path, raster_name, self.cropmun_raster_path)
@@ -126,6 +128,7 @@ class Clusters1D(luigi.Task):
                 cropmun_raster_path = cropmun_raster_path)
 
     def run(self):
+
         cropmun_raster_path = utils.date_rasternames(self.crop_raster_path, self.dates, self.dimension, self.cve_muni)
         dist_array = utils.raster_to_numpy(cropmun_raster_path)
         if self.dimension == 'h':
@@ -135,6 +138,7 @@ class Clusters1D(luigi.Task):
         utils.write_raster(clust, self.cluster_1d_path, cropmun_raster_path)
 
     def output(self):
+
         return luigi.LocalTarget(self.cluster_1d_path)
 
 
@@ -146,6 +150,7 @@ class CreateCluster(luigi.Task):
     clusters_1d_path = luigi.Parameter(default='tmp/') # Add default
     clusters_path = luigi.Parameter(default='clusters/') # Add default
     reference_raster = luigi.Parameter(default='prep_MOD13A2.006/2004.01.01_crop.tiff') # Add default
+
     def requires(self):
         dims = ['h', 'v']
         for dim in dims:
@@ -155,6 +160,7 @@ class CreateCluster(luigi.Task):
                     dimension = dim,
                     cutoff = self.cutoff,
                     cluster_1d_path = cluster_1d_path)
+
     def run(self):
         h_path = utils.date_rasternames(self.clusters_path, self.dates, dimension='h', cve_muni = self.cve_muni, cutoff = self.cutoff)
         v_path = utils.date_rasternames(self.clusters_path, self.dates, dimension='v', cve_muni = self.cve_muni, cutoff = self.cutoff)
@@ -170,6 +176,7 @@ class CreateCluster(luigi.Task):
         return luigi.LocalTarget(cluster_path)
 
 class GetClusters(luigi.WrapperTask):
+
     start = luigi.Parameter(default='2004.01.01')
     end = luigi.Parameter(default='2004.10.01')
     cutoffs = luigi.Parameter(default=['3', '5', '7'])
@@ -181,5 +188,6 @@ class GetClusters(luigi.WrapperTask):
             yield CreateCluster(dates=dates,
                     cutoff=cutoff,
                     cve_muni=self.cve_muni)
+
 if __name__ == '__main__':
     luigi.run()
