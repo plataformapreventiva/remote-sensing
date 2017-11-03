@@ -165,7 +165,7 @@ class CreateCluster(luigi.Task):
         cluster = pu.cluster_join(h_clust, v_clust)
         cluster_path = utils.date_rasternames(self.clusters_path, self.dates, cve_muni = self.cve_muni, cutoff = self.cutoff)
         cluster_u = pu.unify_clusters(cluster)
-        pickle.dump(rasters, open(pickle_path.replace('.tiff', '.p'), 'wb'))
+        pickle.dump(cluster_u, open(cluster_path.replace('.tiff', '.p'), 'wb'))
         utils.write_raster(cluster_u, cluster_path, h_path)
 
     def output(self):
