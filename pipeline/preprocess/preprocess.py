@@ -3,9 +3,8 @@ import preprocess_utils as pu
 import luigi
 import time
 import pickle
-import numpy as no
 
-
+from itertools import product as iterprod
 from luigi import configuration
 #PYTHONPATH="." python preprocess/preprocess.py GetClusters --GetClusters-cve-muni '25010' --local-scheduler
 
@@ -32,7 +31,7 @@ class StackRasters(luigi.Task):
 
 class DistanceRasters(luigi.Task):
     """
-Create horizontal and vertical distance rasters for NDVI and EVI data in Mexico.
+    Create horizontal and vertical distance rasters for NDVI and EVI data in Mexico.
     """
     dates = luigi.Parameter() #pass
     raster_name = luigi.Parameter() # pass
@@ -60,9 +59,9 @@ Create horizontal and vertical distance rasters for NDVI and EVI data in Mexico.
         return luigi.LocalTarget(self.raster_name)
 
 class MunShape(luigi.Task):
-"""
-Creates a municipality shapefile
-"""
+    """
+    Creates a municipality shapefile
+    """
     municipalities_shape_path = luigi.Parameter(default='../shp/muns.shp') #Add default
     cve_muni = luigi.Parameter() #Pass
     mun_shp_path = luigi.Parameter() #Pass
@@ -78,16 +77,16 @@ Creates a municipality shapefile
         return luigi.LocalTarget(self.mun_shp_path)
 
 class CropDistanceRasters(luigi.Task):
-"""
+    """
     Function for croping a distance raster in the shape of a municipio. Requires a municipio shapefile (that can be created via MunShape, and a raster file with temporal distances between pixels, created by DistanceRasters.
 
-"""
+    """
     dates = luigi.Parameter() # Pass
     cve_muni = luigi.Parameter() # Pass
     dimension = luigi.Parameter() # Pass
     dist_raster_path = luigi.Parameter(default='tmp/') # Add default
     cropmun_raster_path = luigi.Parameter() # Pass
-    muns_shps_path = luigi.Parameter(default='tmp/') # Add default
+    muns_shps_path = luigi.Parameter(default='../shp/') # Add default
 
     # Create stack_path
     def requires(self):
@@ -177,17 +176,35 @@ class CreateCluster(luigi.Task):
 
 class GetClusters(luigi.WrapperTask):
 
-    start = luigi.Parameter(default='2004.01.01')
-    end = luigi.Parameter(default='2004.10.01')
-    cutoffs = luigi.Parameter(default=['3', '5', '7'])
-    cve_muni = luigi.Parameter(default='25017')
+    start = luigi.Parameter(default='2006.03.01')
+    end = luigi.Parameter(default='2007.03.01')
+    cutoffs = luigi.Parameter(default=['3', '4', '5', '6', '7'])
+    edos = luigi.Parameter(default=['01', '15', '25'])
+    cve_muni  = luigi.Parameter(default='')
 
     def requires(self):
         dates = utils.get_valid_dates(self.start, self.end) # Add Mods Product
-        for cutoff in self.cutoffs:
-            yield CreateCluster(dates=dates,
-                    cutoff=cutoff,
-                    cve_muni=self.cve_muni)
+        if self.edos:
+            munis = pu.get_munis(self.edos)
+            for cutoff, cve_muni in iterprod(self.cutoffs, munis):
+                yield CreateCluster(dates=dates,
+                        cutoff=cutoff,
+                        cve_muni=cve_muni)
+        elif cve_muni:
+            for cutoff in self.cutoffs:
+                yield CreateCluster(dates=dates,
+                        cutoff=cutoff,
+                        cve_muni=self.cve_muni)
+        else:
+            pass
+
+
+#class CropDate(luigi.Task):
+
+#    date = luigi.Parameter() #pass
+#    output_path = luigi.Parameter()
+
+
 
 if __name__ == '__main__':
     luigi.run()

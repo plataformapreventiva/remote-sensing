@@ -79,9 +79,9 @@ def valid_path(path):
 
 def check_empty_file(path):
     """
-    Check if a file has zero bytes, if so, erase it. 
+    Check if a file has zero bytes, if so, erase it.
     """
-    try: 
+    try:
     	statinfo = os.stat(path).st_size
     except OSError:
 	statinfo = True
@@ -114,6 +114,7 @@ Given date_url from get_date_urls, and tile file names from get_tile_urls, obtai
 
 def get_suffix(modis_prod_url):
     prod = re.search('(MOD\w+\.\d{3})', modis_prod_url)
+    # You can consult a new modis product with command gdalinfo and an hdf file
     suff_dict = {'MOD13A2.006':'":MODIS_Grid_16DAY_1km_VI:1\ km\ 16\ days\ EVI',
             'MOD13Q1.006':'":MODIS_Grid_16DAY_250m_500m_VI:250m\ 16\ days\ EVI'}
     if prod:

@@ -1,6 +1,7 @@
 import fastdtw as dtw #Distance function for time series
 import gdalnumeric as gd
 import numpy as np
+from pandas import read_pickle
 from utils import *
 
 # Functions for processing files, creating clusters, etc
@@ -32,9 +33,9 @@ def pixel_distance_rows(stack):
     return np.array(mat)
 
 def pixel_distance_cols(stack):
-"""
+    """
     Same as before, but with respect to a southern neighbor.
-"""
+    """
     # TODO: Find a more efficient way of iterating through a 2d array
     row, col, time = stack.shape
     mat = [[ts_distance(stack[i,j], stack[i+1,j]) for j in range(col)] for i in range(row-1)]
@@ -74,6 +75,12 @@ def get_k(k, safe_k, row_j):
     k = row_j if row_j > 0 else safe_k
     return k, safe_k
 
+def get_munis(edos):
+    """
+    Return a list of municipios from a list of edos
+    """
+    muns_p = read_pickle('preprocess/muns_keys.p')
+    return [mun for edo in edos for mun in list(muns_p[edo])]
 
 def cluster_value(x, cutoff, k):
     if x < 0.0001:
