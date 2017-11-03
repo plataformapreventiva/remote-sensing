@@ -66,9 +66,6 @@ class MunShape(luigi.Task):
     cve_muni = luigi.Parameter() #Pass
     mun_shp_path = luigi.Parameter() #Pass
 
-    #def requires(self):
-    #    return luigi.LocalTarget(self.municipalities_shape_path)
-
     def run(self):
         utils.create_mun_shp(self.cve_muni, self.mun_shp_path, self.municipalities_shape_path)
         time.sleep(2) # Sometimes shp files take a second to create
@@ -168,6 +165,7 @@ class CreateCluster(luigi.Task):
         cluster = pu.cluster_join(h_clust, v_clust)
         cluster_path = utils.date_rasternames(self.clusters_path, self.dates, cve_muni = self.cve_muni, cutoff = self.cutoff)
         cluster_u = pu.unify_clusters(cluster)
+        pickle.dump(rasters, open(pickle_path.replace('.tiff', '.p'), 'wb'))
         utils.write_raster(cluster_u, cluster_path, h_path)
 
     def output(self):
@@ -199,12 +197,83 @@ class GetClusters(luigi.WrapperTask):
             pass
 
 
-#class CropDate(luigi.Task):
 
-#    date = luigi.Parameter() #pass
-#    output_path = luigi.Parameter()
+###########################
+# Second Preprocess Task: crop original rasters
+# CROP ALL NDVI RASTERS into MUNI RASTERS, and stack them into
+# MUNI-ARRAYS saved as PICKLES
+###########################
+class CropDate(luigi.Task):
 
+    target_raster_path = luigi.Parameter() #pass
+    suffix = luigi.Parameter(default='_crop.tiff') #default
+    date = luigi.Parameter() #pass
+    output_raster_path = luigi.Parameter() #pass
+    cve_muni = luigi.Parameter() #pass
+    muns_shps_path = luigi.Parameter(default='../shp/') #default
 
+    def requires(self):
+        mun_shp_path = self.muns_shps_path + self.cve_muni + '.shp'
+        yield MunShape(cve_muni = self.cve_muni,
+                mun_shp_path = mun_shp_path)
+
+    def run(self):
+        raster_name = self.target_raster_path + self.date + self.suffix
+        mun_shp_path = self.muns_shps_path + self.cve_muni + '.shp'
+        cropmun_raster_path = self.output_raster_path + self.date + '.tiff'
+        utils.crop_raster(mun_shp_path, raster_name, cropmun_raster_path)
+
+    def output(self):
+        cropmun_raster_path = self.output_raster_path + self.date + '.tiff'
+        return luigi.LocalTarget(cropmun_raster_path)
+
+class MunArray(luigi.Task):
+
+    dates = luigi.Parameter()
+    cve_muni = luigi.Parameter()
+    muni_raster_path = luigi.Parameter()
+    output_array_path = luigi.Parameter(default='arrays/')
+    target_raster_path = luigi.Parameter(default='prep_MOD13A2.006/')
+
+    def requires(self):
+
+        utils.valid_path(self.target_raster_path)
+        for date in self.dates:
+            yield CropDate(cve_muni=self.cve_muni,
+                    date=date,
+                    target_raster_path=self.target_raster_path,
+                    output_raster_path=self.muni_raster_path)
+
+    def run(self):
+
+        utils.valid_path(self.output_array_path)
+        rasters = utils.rasters_stack(self.dates, self.muni_raster_path, '.tiff')
+        pickle_path = self.output_array_path + self.cve_muni + '_' + self.dates[0] + '-' + self.dates[-1] + '.p'
+        pickle.dump(rasters, open(pickle_path, 'wb'))
+
+    def output(self):
+
+        pickle_path = self.output_array_path + self.cve_muni + '_' + self.dates[0] + '-' + self.dates[-1] + '.p'
+        return luigi.LocalTarget(pickle_path)
+
+class Arrays(luigi.WrapperTask):
+
+    start = luigi.Parameter(default='2004.01.01')
+    end = luigi.Parameter(default='2008.01.01')
+    edos = luigi.Parameter(default=['01', '15', '25'])
+    muni_rasters = luigi.Parameter(default='mun_raster/')
+
+    def requires(self):
+        utils.valid_path(self.muni_rasters)
+        dates = utils.get_valid_dates(self.start, self.end)
+        munis = pu.get_munis(self.edos)
+
+        for cve_muni in munis:
+            muni_raster_path = self.muni_rasters + cve_muni + '/'
+            utils.valid_path(muni_raster_path)
+            yield MunArray(cve_muni=cve_muni,
+                    dates=dates,
+                    muni_raster_path=muni_raster_path)
 
 if __name__ == '__main__':
     luigi.run()
