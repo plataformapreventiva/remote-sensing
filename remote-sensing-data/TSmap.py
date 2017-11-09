@@ -1,3 +1,4 @@
+# -*- coding: UTF-8 -*-
 import pandas as pd
 import numpy as np
 import glob
@@ -16,7 +17,7 @@ def TSmap(i):
 
 
         # set path to the EVI arrays (Enhanced Vegetation Index) 
-        path = 'C:\\Users\\Raul Vazquez\\Desktop\\NNproj\\remote-sensing\\remote-sensing-data\\arrays\\*.p'
+        path = './remote-sensing-data/arrays/*.p'
         pickles = glob.glob(path)
 
 
