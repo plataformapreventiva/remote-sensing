@@ -7,6 +7,7 @@ import fastdtw as dtw
 import datetime
 import glob
 from dateutil.relativedelta import relativedelta 
+
 import csv
 
 ''' ==============================================================================='''
@@ -65,7 +66,6 @@ def read_agricolaDB(cve_mpo, init_date, end_date):
     '''
     NOT SURE OF THIS ANYMORE:
     # the y variable ig going to be 4-months lagged
-    from dateutil.relativedelta import relativedelta
     init_date += relativedelta(months = 4)
     end_date  += relativedelta(months = 4) 
     '''
@@ -105,13 +105,7 @@ def read_agricolaDB(cve_mpo, init_date, end_date):
 
 ''' ------------------------------------------------------------------------------'''
 
-''' ==============================================================================='''
-''' ================ S E C T I O N:   P R E P R O C E S S ========================='''
-''' ==============================================================================='''
 
-
-
-''' ------------------------------------------------------------------------------'''
 
 
 
@@ -120,13 +114,15 @@ def read_agricolaDB(cve_mpo, init_date, end_date):
 ''' ========== S E C T I O N:   V I S U A L I Z A T I O N   T O O L S ============='''
 ''' ==============================================================================='''
 
-def gridPlotsTS(im):
+def gridPlotsTS(im, mpo):
     '''
     #=============================================================
     # function to vizualize the TS of a municilpality 
     #
-    # param im := a 3-dim array with the values of the EVI TS
-    #             (x,y,z) := value of the EVI in "coords" (x,y) at time step z
+    # INPUT:
+        - im := a 3-dim array with the values of the EVI TS
+                (x,y,z) := value of the EVI in "coords" (x,y) at time step z
+        - mpo := clave del municipio
     #=============================================================
     '''
     plt.figure()
@@ -137,9 +133,17 @@ def gridPlotsTS(im):
         pl = plt.imshow(image, aspect='auto')
         pl.axes.get_xaxis().set_ticks([])
         pl.axes.get_yaxis().set_ticks([])
+        if t ==  math.ceil(gridsize/2):
+            plt.title("Serie de Tiempo del NDVI del municipio "+mpo)
     plt.show()
     
 ''' ------------------------------------------------------------------------------'''
+
+
+
+''' ==============================================================================='''
+''' ================ S E C T I O N:   P R E P R O C E S S ========================='''
+''' ==============================================================================='''
 
 def perdelta(start, end, delta):
     curr = np.array(start)
@@ -148,6 +152,32 @@ def perdelta(start, end, delta):
         curr += delta 
         array = np.append(array, curr)
     return(array)
+    
+
+def gen_clustersDF(dates, ndvi_clust, iterdDBA):
+    '''
+    Generates a pd.DataFrame with the values of the iterated DTW Barycenter Averaging per cluster
+    INPUT:
+        - dates: array ('datetime64[D]') with observation dates of the NDVI values
+        - ndvi_clust: pickle with the clusters value on the municipality
+        - iterdDBA: picke with the value of the iterated DBA over the pixels belonging to each cluster
+    OUTPUT:
+        - ndvi_df: (pd.DataFrame) values of the NDVI averaged by cluster. 
+                  Columns named 'cNUMBER' for cluster values and "indNUMBER" for single element clusters
+    '''
+    ndvi_df = pd.DataFrame(dates , columns = ['dates'])
+    for clust in range(1,np.max(ndvi_clust)+1):
+        cloc = np.where(ndvi_clust == clust)
+        name = 0 
+        if clust < np.max(ndvi_clust):
+            name = 'c'+str(clust)
+            ndvi_df[name] = iterdDBA[cloc[0][0],cloc[1][0]]
+        else:
+            for x,y in zip(cloc[0],cloc[1]):
+                name += 1 
+                ndvi_df['ind'+str(name)] = iterdDBA[x,y]
+    return ndvi_df.set_index('dates')
+
     
 def minVal(v1, v2, v3):
     '''
@@ -302,3 +332,6 @@ def gen_clusterTS(imageTS, clusterMap):
     clust_DBAiterated[cloc] = imageTS[cloc]
     clust_meanTS[cloc] = imageTS[cloc]
     return (clust_meanTS, clust_DBA, clust_DBAiterated)
+
+
+''' ------------------------------------------------------------------------------'''
