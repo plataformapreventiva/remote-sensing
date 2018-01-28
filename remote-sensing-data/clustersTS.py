@@ -16,7 +16,7 @@ os.chdir("C:\\Users\\Raul Vazquez\\Desktop\\NNproj\\remote-sensing\\remote-sensi
 ##############
 import utils_loc
 
-
+from dateutil.relativedelta import relativedelta
 
 path = './arrays/*.p'
 tss = glob.glob(path)
@@ -32,66 +32,6 @@ clust = pd.read_pickle(clusts[(i*5 + corte)]).astype('int16') # read the cluster
 cve_mpo = tss[i][(tss[i].find('\\')+1):tss[i].find('_')]
 # visualize the TS
 utils_loc.gridPlotsTS(im)
-
-
-def read_agricolaDB(init_date, end_date):
-    '''
-    load the database that contains the objective value 
-        y=superficie_Cosechada/superficie_Sembrada
-    INPUT:
-        - init_date:(datetime.date) Date of NDVI´s Time Series first observation
-        - end_date: (datetime.date) Date of NDVI´s Time Series last observation
-    OUTPUT:
-        y_TPV: (DataFrame) 'temporal' & 'primavera-verano' y_variable, indexed over the dates
-        y_RPV: (DataFrame) 'riego' & 'primavera-verano' y_variable, indexed over the dates
-        y_TOI: (DataFrame) 'temporal' & 'otono-invierno' y_variable, indexed over the dates
-        y_ROI: (DataFrame) 'temporal' & 'otono-invierno' y_variable, indexed over the dates
-    '''
-    path_y = './avance_agricola/agricola_201712.csv'
-    with open(path_y,'r') as f:
-        reader = csv.reader(f, skipinitialspace=False)
-        colnames = np.array(next(reader))
-        db1 = np.array([(x) for x in reader if x[1] == cve_mpo]) # only interested on the municipality (i+1)
-    '''
-    NOT SURE OF THIS ANYMORE:
-    # the y variable ig going to be 4-months lagged
-    from dateutil.relativedelta import relativedelta
-    init_date += relativedelta(months = 4)
-    end_date  += relativedelta(months = 4) 
-    '''
-    df = pd.DataFrame(db1, columns = colnames, dtype = str ) # see values EXAMPLE: df.loc[1,:]
-    '''PREPROCESS observed y_ variable'''
-    # transform desired variables from strings to floats
-    numeric_vars = ['mes','anio','sup_sembrada', 'sup_cosechada', 'sup_siniestrada',
-                'produccion', 'rendimiento', 'mes_agricola', 'anio_agricola']
-    for var in numeric_vars:
-        df[var] = df[var].map(lambda x: x.replace(',',''))
-
-    df[numeric_vars] = df[numeric_vars].apply(pd.to_numeric)
-
-
-    #df[(df['sup_sembrada'] == df['sup_cosechada'] + df['sup_siniestrada'])]
-    df['date'] = [datetime.datetime(x,y,1) for x,y in zip(df['anio'],df['mes'])] 
-    df['date_agricola'] = [datetime.datetime(x,y,1) for x,y in zip(df['anio_agricola'],df['mes_agricola'])] 
-
-    # choose only the dates we are interested in (i.e., the ones for which we have the ndvi TS)
-    df = df.loc[(df['date'] >= init_date) & (df['date'] <= end_date)]
-
-    # sort in ascending date values
-    df = df.sort_values(by = 'date', ascending = True)
-
-    # generate observed value harvested_surface/planted_surface
-    df['prop_cosecha'] = df['sup_cosechada']/df['sup_sembrada']
-    
-    # divide y variable by agricultural cycle ("ciclo") and watering method ("modalidad hidrica")
-    y_TPV = df.loc[(df['moda_hidr'] == 'T') & (df['ciclo'] == 'PV')][['date','prop_cosecha']]
-    y_RPV = df.loc[(df['moda_hidr'] == 'R') & (df['ciclo'] == 'PV')][['date','prop_cosecha']]
-    y_TOI = df.loc[(df['moda_hidr'] == 'T') & (df['ciclo'] == 'OI')][['date','prop_cosecha']]
-    y_ROI = df.loc[(df['moda_hidr'] == 'R') & (df['ciclo'] == 'OI')][['date','prop_cosecha']]
-    return (y_TPV.set_index('date'),
-            y_RPV.set_index('date'),
-            y_TOI.set_index('date'),
-            y_ROI.set_index('date'))
 
 
 
@@ -169,7 +109,6 @@ plt.plot(np.asarray(y_TPV['date'], dtype='datetime64[ns]'), y_TPV['prop_cosecha'
 plt.title('Proporción de superficie cosechada respecto a la sembrada')
 plt.legend()
 xfmt = mdates.DateFormatter('%b %Y')
-ax.xaxis_date()
 plt.gca().xaxis.set_major_formatter(xfmt)
 plt.gcf().autofmt_xdate() # tilts the x labels
 plt.show()
@@ -334,3 +273,65 @@ plt.legend()
 #    clust = pd.read_pickle(clusts[(i*5 + corte)]).astype('int16') # read the cluster "map"
 #    cve_mpo = tss[i][(tss[i].find('\\')+1):tss[i].find('_')]
 #    return(cve_mpo, im, clust)
+    
+    
+    
+    
+#def read_agricolaDB(init_date, end_date):
+'''
+    load the database that contains the objective value 
+        y=superficie_Cosechada/superficie_Sembrada
+    INPUT:
+        - init_date:(datetime.date) Date of NDVI´s Time Series first observation
+        - end_date: (datetime.date) Date of NDVI´s Time Series last observation
+    OUTPUT:
+        y_TPV: (DataFrame) 'temporal' & 'primavera-verano' y_variable, indexed over the dates
+        y_RPV: (DataFrame) 'riego' & 'primavera-verano' y_variable, indexed over the dates
+        y_TOI: (DataFrame) 'temporal' & 'otono-invierno' y_variable, indexed over the dates
+        y_ROI: (DataFrame) 'temporal' & 'otono-invierno' y_variable, indexed over the dates
+    '''
+#    path_y = './avance_agricola/agricola_201712.csv'
+#    with open(path_y,'r') as f:
+#        reader = csv.reader(f, skipinitialspace=False)
+#        colnames = np.array(next(reader))
+#        db1 = np.array([(x) for x in reader if x[1] == cve_mpo]) # only interested on the municipality (i+1)
+'''
+    NOT SURE OF THIS ANYMORE:
+    # the y variable ig going to be 4-months lagged
+    from dateutil.relativedelta import relativedelta
+    init_date += relativedelta(months = 4)
+    end_date  += relativedelta(months = 4) 
+    '''
+#    df = pd.DataFrame(db1, columns = colnames, dtype = str ) # see values EXAMPLE: df.loc[1,:]
+#    '''PREPROCESS observed y_ variable'''
+#    # transform desired variables from strings to floats
+#    numeric_vars = ['mes','anio','sup_sembrada', 'sup_cosechada', 'sup_siniestrada',
+#                'produccion', 'rendimiento', 'mes_agricola', 'anio_agricola']
+#    for var in numeric_vars:
+#        df[var] = df[var].map(lambda x: x.replace(',',''))
+#
+#    df[numeric_vars] = df[numeric_vars].apply(pd.to_numeric)
+#
+#
+#    #df[(df['sup_sembrada'] == df['sup_cosechada'] + df['sup_siniestrada'])]
+#    df['date'] = [datetime.datetime(x,y,1) for x,y in zip(df['anio'],df['mes'])] 
+#    df['date_agricola'] = [datetime.datetime(x,y,1) for x,y in zip(df['anio_agricola'],df['mes_agricola'])] 
+#
+#    # choose only the dates we are interested in (i.e., the ones for which we have the ndvi TS)
+#    df = df.loc[(df['date'] >= init_date) & (df['date'] <= end_date)]
+#
+#    # sort in ascending date values
+#    df = df.sort_values(by = 'date', ascending = True)
+#
+#    # generate observed value harvested_surface/planted_surface
+#    df['prop_cosecha'] = df['sup_cosechada']/df['sup_sembrada']
+#    
+#    # divide y variable by agricultural cycle ("ciclo") and watering method ("modalidad hidrica")
+#    y_TPV = df.loc[(df['moda_hidr'] == 'T') & (df['ciclo'] == 'PV')][['date','prop_cosecha']]
+#    y_RPV = df.loc[(df['moda_hidr'] == 'R') & (df['ciclo'] == 'PV')][['date','prop_cosecha']]
+#    y_TOI = df.loc[(df['moda_hidr'] == 'T') & (df['ciclo'] == 'OI')][['date','prop_cosecha']]
+#    y_ROI = df.loc[(df['moda_hidr'] == 'R') & (df['ciclo'] == 'OI')][['date','prop_cosecha']]
+#    return (y_TPV.set_index('date'),
+#            y_RPV.set_index('date'),
+#            y_TOI.set_index('date'),
+#            y_ROI.set_index('date'))
