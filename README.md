@@ -1,4 +1,4 @@
-# remote-sensing agricultural producction indicator
+# remote-sensing agricultural produccion indicator
 
 ## Introducción
 
