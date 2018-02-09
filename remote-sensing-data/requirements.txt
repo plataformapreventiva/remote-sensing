@@ -1,0 +1,10 @@
+matplotlib
+numpy
+pandas
+math
+os
+fastdtw
+glob
+datetime
+csv
+tensorflow
