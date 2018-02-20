@@ -22,32 +22,32 @@ def cnn_model_fn(features, labels, mode):
   
     """
     # Input Layer
-    input_layer = tf.reshape(features["x"], [-1, 28, 28, 1]) # [batch_size, image_width, image_height, channels]. 
+    input_layer = tf.reshape(features["x"], [-1, 28, 40, 1]) # [batch_size, image_width, image_height, channels]. 
                                                           # batch_size = -1 specifies that this dimension will be computed based on the specs of features["x"]. All other dims are kept constant.
                                                           # channels = 1 for B&W images, 3 for RGB
                                                           
     # first convolutional layer
     conv1 = tf.layers.conv2d(inputs=input_layer, filters=32,# the dim of the output space (i.e. the number of filters in the convolution)
-                             kernel_size=[5, 5], padding="same", activation=tf.nn.relu)
+                             kernel_size=[5, 5], padding="same", activation=tf.nn.relu, name = "conv1")
 
     # first pooling layer
-    pool1 = tf.layers.max_pooling2d(inputs=conv1, pool_size=[2, 2], strides=2)# output tensor size=[batch_size, 14, 14, 32] because the 2x2 filter reduces width and height by 50% each
+    pool1 = tf.layers.max_pooling2d(inputs=conv1, pool_size=[2, 2], strides=2 , name = "pool1")# output tensor size=[batch_size, 14, 20, 32] because the 2x2 filter reduces width and height by 50% each
 
     # second convolutional layer
-    conv2 = tf.layers.conv2d(inputs=pool1, filters=64, kernel_size=[5, 5], 
-                             padding="same", activation=tf.nn.relu) # padding=same: the output tensor has the same width and height as the input tensor
+    conv2 = tf.layers.conv2d(inputs=pool1, filters=64, 
+                             kernel_size=[5, 5], padding="same", activation=tf.nn.relu, name = "conv2") # padding=same: the output tensor has the same width and height as the input tensor
   
     # second pooling layer
-    pool2 = tf.layers.max_pooling2d(inputs=conv2, pool_size=[2, 2], strides=2)# output tensor size=[batch_size, 7, 7, 64]
+    pool2 = tf.layers.max_pooling2d(inputs=conv2, pool_size=[2, 2], strides=2, name = "pool2")# output tensor size=[batch_size, 7, 10, 64]
 
     # first dense Layer
-    pool2_flat = tf.reshape(pool2, [-1, 7 * 7 * 64])
-    dense = tf.layers.dense(inputs=pool2_flat, units=1024, activation=tf.nn.relu)
-    dropout = tf.layers.dropout(inputs=dense, rate=0.4, training=mode == tf.estimator.ModeKeys.TRAIN)
+    pool2_flat = tf.reshape(pool2, [-1, 7 * 10 * 64])
+    dense = tf.layers.dense(inputs=pool2_flat, units=1024, activation=tf.nn.relu, name = "dense1")
+    dropout = tf.layers.dropout(inputs=dense, rate=0.4, training=mode == tf.estimator.ModeKeys.TRAIN, name = "dropout")
 
     # classified OUTPUTS layer
-    logits = tf.layers.dense(inputs=dropout, units=10) # Logit is a fn that maps probas to R, i.e.,[0, 1] -> (-inf, inf)
-                                                    # has shape [batch_size, 10].
+    logits = tf.layers.dense(inputs=dropout, units=4, name = "logits") # Logit is a fn that maps probas to R, i.e.,[0, 1] -> (-inf, inf)
+                                                    # has shape [batch_size, 4].
     
     # Generate predictions
     predictions = {
@@ -62,7 +62,7 @@ def cnn_model_fn(features, labels, mode):
 
     # Training Operation (only for .TRAIN mode)
     if mode == tf.estimator.ModeKeys.TRAIN:
-      optimizer = tf.train.GradientDescentOptimizer(learning_rate=0.001)
+      optimizer = tf.train.GradientDescentOptimizer(learning_rate=0.000000001)
       train_op = optimizer.minimize(loss=loss, global_step=tf.train.get_global_step())
     return tf.estimator.EstimatorSpec(mode=mode, loss=loss, train_op=train_op)
 

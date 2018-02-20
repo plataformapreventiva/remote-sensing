@@ -8,29 +8,105 @@ import matplotlib.dates as mdates
 import numpy as np
 import pandas as pd
 import math
-#import datetime
+import itertools
+import tensorflow as tf
 import os
 ##############
 os.chdir("C:\\Users\\Raul Vazquez\\Desktop\\NNproj\\remote-sensing\\remote-sensing-data")
 %matplotlib auto
 ##############
 import utils_loc
-from tf_lstm import lstm_model
-
+#from tf_lstm import lstm_model
+from tf_cnn import cnn_model_fn
 #import glob
 
 # import NDVI data
 cve_mpo, ndvi_TS, ndvi_clust, init_date, end_date = utils_loc.read_NDVI(mun_num=7, clust_cut_val=2)
 init_date = np.datetime64(init_date)
 end_date = np.datetime64(end_date)
-# visualize the TS
-utils_loc.gridPlotsTS(ndvi_TS, cve_mpo)
-
-
 
 y_TPV, y_RPV, y_TOI, y_ROI = utils_loc.read_agricolaDB(cve_mpo, init_date, end_date)
 
-# VISUALIZE the y_series:
+'''
+MODIS releases images every 16 days
+    1 year contains 23 observations s.t. every year the observations are on the same date 
+    (the last observation of the year contains less days)
+'''
+
+YY = pd.DatetimeIndex([init_date.astype('str')]).year[0]
+ndvi_obsDates =[np.arange(np.datetime64(str(YY+aa)), np.datetime64(str(YY+aa)) +  np.timedelta64(357,'D'), np.timedelta64(16,'D')) for aa in range(0,math.ceil( (end_date-init_date)/np.timedelta64(365,'D') ))]
+ndvi_obsDates = np.array(ndvi_obsDates).flatten()
+
+''' ------- PREPROCESS X variable ---------- '''
+
+####################
+# def preprocessX(y,):
+# depends on which series to work with: 
+#           'TPV' 'TOI' 'ROI' or 'RPV'
+y = y_TPV.copy()
+####################
+''' # cut the NDVI time series to match our y_variable dates
+ndvi_obsDates = ndvi_obsDates[np.where(ndvi_obsDates >= y.index.get_values()[0])[0]]
+ndvi_obsDates = ndvi_obsDates[np.where(ndvi_obsDates <  y.index.get_values()[-1])[0]]
+ndvi_TS = ndvi_TS[:,:,np.where(ndvi_obsDates >= y.index.get_values()[0])[0]]
+ndvi_TS = ndvi_TS[:,:,np.where(ndvi_obsDates < y.index.get_values()[-1])[0]]
+'''
+
+#ndvi_TS2 = [ndvi_TS[:,:,i].flatten() for i in range(len(ndvi_obsDates))]
+#ndvi_TS2 = [list(itertools.chain.from_iterable(ndvi_TS2[i:i+8])) for i in range(len(ndvi_TS2))]
+'''
+train_data = np.array()
+for date in y.index.get_values()[9:10]:
+    print(date)
+    print(ndvi_obsDates[np.where(ndvi_obsDates <= date + np.timedelta64(30,'D'))[0][-8:]])
+    [ndvi_TS[:,:,np.where(ndvi_obsDates <= date + np.timedelta64(30,'D'))[0][-8:]].flatten()
+    print(save)
+'''
+    
+"TO DO: Complete the Dates for agro_production (the y.index.get_values() series) and change [2:] to [3:]"
+train_data = np.array([ndvi_TS[:,:,np.where(ndvi_obsDates <= date + np.timedelta64(30,'D'))[0][-8:]].flatten() for date in y.index.get_values()[2:]])
+train_dates = np.array([ndvi_obsDates[np.where(ndvi_obsDates <= date + np.timedelta64(30,'D'))[0][-8:]].flatten() for date in y.index.get_values()[2:]])    
+train_labels = np.array(pd.cut(y['prop_cosecha'], bins = [-0.01,0.25,0.5,0.75,1.0], labels = [0,1,2,3]))[2:]
+"""
+ LABELS = 0: 0 < proporcion_cosechada <= 0.25,
+          1: 0.25< prop_cosechada <= 0.5,
+          2: 0.5 < prop_cosechada <= 0.75
+          3: 0.75< prop_cosechada <= 1.0
+"""   
+
+from tf_cnn import cnn_model_fn
+# Create the Estimator
+agrProd_classifier = tf.estimator.Estimator(model_fn=cnn_model_fn, model_dir="/tmp/ndvi_cnn_model")
+
+# Set up logging for predictions
+tensors_to_log = {"probabilities": "softmax_tensor"}
+logging_hook = tf.train.LoggingTensorHook(tensors=tensors_to_log, every_n_iter=50)
+
+# Train the model
+train_input_fn = tf.estimator.inputs.numpy_input_fn(
+    x={"x": train_data.astype('float32')},
+    y=train_labels.astype('int32'),
+    batch_size=100,
+    num_epochs=None,
+    shuffle=True)
+agrProd_classifier.train(
+    input_fn=train_input_fn,
+    steps=20000,
+    hooks=[logging_hook])
+
+# Evaluate the model and print results
+eval_input_fn = tf.estimator.inputs.numpy_input_fn(
+    x={"x": eval_data},
+    y=eval_labels,
+    num_epochs=1,
+    shuffle=False)
+eval_results = agrProd_classifier.evaluate(input_fn=eval_input_fn)
+print(eval_results)
+
+
+'''
+# VISUALIZATION METHODS
+# the y_series:
 try:
     plt.figure()
     plt.gca().xaxis.set_major_locator(mdates.AutoDateLocator())# .MonthLocator())
@@ -48,33 +124,34 @@ try:
     #plt.xticks( y_TPV.index.get_values() )
 except:
         pass
-
+# visualize the TS
+utils_loc.gridPlotsTS(ndvi_TS, cve_mpo)
 
 '''
-MODIS release images every 16 days
-    1 year contains 23 observations s.t. every year the observations are on the same date 
-    (last observation of the year contains less days)
-'''
-ndvi_obsDates = [np.arange( (init_date + np.timedelta64((365+1)*aa,'D')), 
-                            (init_date + np.timedelta64((365+1)*aa,'D') + np.timedelta64(357,'D') ),
-                             np.timedelta64(16,'D'))
-                for aa in range(math.ceil( (end_date-init_date)/np.timedelta64(365,'D')  ))]
-ndvi_obsDates = np.array(ndvi_obsDates).flatten()
 
 
-''' ------- PREPROCESS X variable ---------- '''
 
-# cut the NDVI time series to match our y_variable dates
-####################
-# def preprocessX(y,):
-# depends on which series to work with: 
-#           'TPV' 'TOI' 'ROI' or 'RPV'
-y = y_RPV.copy()
-####################
-ndvi_TS = ndvi_TS[:,:,np.where(ndvi_obsDates >= y.index.get_values()[0])[0]]
-ndvi_obsDates = ndvi_obsDates[np.where(ndvi_obsDates >= y.index.get_values()[0])[0]]
-ndvi_TS = [list(ndvi_TS[:,:,i].flatten()) for i in range(len(ndvi_obsDates))]
-    
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -137,7 +214,7 @@ rmse = np.sqrt(((predicted - yy['test']) ** 2).mean(axis=0))
 
 
 import imp
-imp.reload(utils_loc)
+imp.reload(tf_cnn)
 
 
 
